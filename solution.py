@@ -117,9 +117,11 @@ def q_from_v(
     """
     q = {}
     for s in enumerate_states(mdp):
-        if mdp.is_terminal(s):
+        acts = list(mdp.actions(s))
+        if not acts or acts == [ABSORB]:
+            q[(s, ABSORB)] = 0.0
             continue
-        for a in mdp.actions(s):
+        for a in acts:
             total = 0.0
             for ns, p in mdp.transition(s, a):
                 total += p * (mdp.reward(ns) + gamma * v.get(ns, 0.0))
@@ -226,7 +228,6 @@ def policy_evaluation(
     """
     S = P.shape[0]
     if abs(1.0 - gamma) < 1e-12:
-        # Solve (I - gamma P) v = r
         I = np.eye(S, dtype=float)
         A = I - float(gamma) * P
         v_vec = np.linalg.solve(A, r)
