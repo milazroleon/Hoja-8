@@ -326,7 +326,7 @@ def policy_improvement(
         table[s] = best_a
         advantage[(s, table[s])] = 0.0
 
-    return TabularPolicy(mdp, mdp.rng, table=table), advantage
+    return TabularPolicy(mdp, np.random.default_rng(0), table=table), advantage
     
 
 
