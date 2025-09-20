@@ -314,17 +314,21 @@ def policy_improvement(
 
     for s in enumerate_states(mdp):
         if mdp.is_terminal(s):
+            table[s] = ABSORB
+            advantage[(s, ABSORB)] = 0.0
             continue
 
         best_a, best_val = None, float("-inf")
         for a in mdp.actions(s):
             adv = q[(s, a)] - v[s]
             advantage[(s, a)] = adv
-            if adv > best_val or (abs(adv - best_val) < 1e-10 and _action_order_key(a) < _action_order_key(best_a)):
+            if adv > best_val or (
+                abs(adv - best_val) < 1e-10
+                and _action_order_key(a) < _action_order_key(best_a)
+            ):
                 best_a, best_val = a, adv
 
         table[s] = best_a
-        advantage[(s, table[s])] = 0.0
 
     return TabularPolicy(mdp, np.random.default_rng(0), table=table), advantage
     
