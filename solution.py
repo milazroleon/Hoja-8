@@ -115,20 +115,15 @@ def q_from_v(
     • The provided `v` is assumed to correspond to the same policy π implicitly
       used when `enumerate_states` and `transition` are evaluated.
     """
-    for s in states:
-        acts = list(mdp.actions(s))
-        if acts == [ABSORB]:
-            q[(s, ABSORB)] = 0.0
+    q = {}
+    for s in enumerate_states(mdp):
+        if mdp.is_terminal(s):
             continue
-
-        for a in acts:
-            val = 0.0
-            for (s_next, p) in mdp.transition(s, a):
-                r = mdp.reward(s_next)
-                v_next = v.get(s_next, 0.0)
-                val += float(p) * (float(r) + float(gamma) * float(v_next))
-            q[(s, a)] = float(val)
-
+        for a in mdp.actions(s):
+            total = 0.0
+            for ns, p in mdp.transition(s, a):
+                total += p * (mdp.reward(ns) + gamma * v.get(ns, 0.0))
+            q[(s, a)] = total
     return q
 
 
@@ -313,39 +308,25 @@ def policy_improvement(
     • If a state has no admissible actions, set π'(s) = ABSORB and skip arrows.
     """
 
-    states = enumerate_states(mdp)
     q = q_from_v(mdp, v, gamma)
+    advantage = {}
+    table = {}
 
-    advantage: Dict[Tuple[State, Action], float] = {}
-    for (s, a), qval in q.items():
-
-        v_s = v.get(s, 0.0)
-        advantage[(s, a)] = float(qval - v_s)
-
-    new_table: Dict[State, Action] = {}
-    for s in states:
-        acts = list(mdp.actions(s))
-        if acts == [ABSORB]:
-            new_table[s] = ABSORB
+    for s in enumerate_states(mdp):
+        if mdp.is_terminal(s):
             continue
 
+        best_a, best_val = None, float("-inf")
+        for a in mdp.actions(s):
+            adv = q[(s, a)] - v[s]
+            advantage[(s, a)] = adv
+            if adv > best_val or (abs(adv - best_val) < 1e-10 and _action_order_key(a) < _action_order_key(best_a)):
+                best_a, best_val = a, adv
 
-        sorted_actions = sorted(acts, key=_action_order_key)
-        best_a = None
-        best_val = -np.inf
-        for a in sorted_actions:
-            a_adv = advantage.get((s, a), -np.inf)
-            if a_adv > best_val:
-                best_val = a_adv
-                best_a = a
-        if best_a is None:
-            best_a = sorted_actions[0] if sorted_actions else ABSORB
-        new_table[s] = best_a
+        table[s] = best_a
+        advantage[(s, table[s])] = 0.0
 
-
-    deterministic_rng = np.random.default_rng(0)
-    new_policy = TabularPolicy(mdp=mdp, rng=deterministic_rng, table=new_table)
-    return new_policy, advantage
+    return TabularPolicy(mdp, mdp.rng, table=table), advantage
     
 
 
